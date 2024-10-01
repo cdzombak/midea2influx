@@ -96,7 +96,6 @@ func main() {
 		}
 		log.Fatalf("Failed to run %s: %s", mCliName, err)
 	}
-	outStr := string(out)
 
 	currentID := ""
 	points := make([]*write.Point, 0)
