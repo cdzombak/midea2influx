@@ -22,8 +22,8 @@ RUN apt-get -y update &&  \
     -y build-essential gcc && \
     rm -rf /var/lib/apt/lists/*
 COPY requirements.txt /opt/requirements.txt
-RUN pip install --upgrade --no-cache-dir pip && \
-    pip install --no-cache-dir --no-dependencies -r /opt/requirements.txt && \
+RUN pip install --root-user-action --upgrade --no-cache-dir pip && \
+    pip install --root-user-action --no-cache-dir --no-dependencies -r /opt/requirements.txt && \
     rm /opt/requirements.txt
 
 LABEL license="MIT"
