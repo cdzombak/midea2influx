@@ -28,7 +28,7 @@ This assumes you're storing your JSON configuration file at `/home/cdzombak/.con
 
 ## Configuration
 
-Details TK (#TK); for now see `config.example.json`.
+Details TK ([#1](https://github.com/cdzombak/midea2influx/issues/1)); for now see `config.example.json`.
 
 ## License
 
