@@ -1,0 +1,19 @@
+{
+  "measurement_name_dehumidifier": "midea_dehumidifier",
+  "influx_server": "http://192.168.1.2:8086",
+  "influx_bucket": "MYHOME",
+  "influx_user": "",
+  "influx_password": "",
+  "influx_token": "",
+  "influx_org": "",
+  "influx_health_check_disabled": false,
+  "heartbeat_url": "http://example.lan/health/midea2influx",
+  "midea_beautiful_air_cli_discover_args": [
+    "--account",
+    "me@example.com",
+    "--password",
+    "hunter2",
+    "--app",
+    "MSmartHome"
+  ]
+}
