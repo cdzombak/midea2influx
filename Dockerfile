@@ -18,8 +18,9 @@ ENTRYPOINT ["/usr/bin/midea2influx"]
 CMD ["-config", "/config.json"]
 
 COPY requirements.txt /opt/requirements.txt
-RUN pip install --root-user-action --upgrade --no-cache-dir pip && \
-    pip install --root-user-action --no-cache-dir --no-dependencies -r /opt/requirements.txt && \
+ENV PIP_ROOT_USER_ACTION=ignore
+RUN pip install --upgrade --no-cache-dir pip && \
+    pip install --no-cache-dir --no-dependencies -r /opt/requirements.txt && \
     rm /opt/requirements.txt
 
 LABEL license="MIT"
