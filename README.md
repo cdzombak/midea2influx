@@ -21,10 +21,12 @@ Therefore:
 A minimal usage example is this, which one would run as desired via a cron job:
 
 ```sh
-docker run --rm -v /home/cdzombak/.config/midea2influx.json:/config.json:ro cdzombak/midea2influx:1
+docker run --rm --network host -v /home/cdzombak/.config/midea2influx.json:/config.json:ro cdzombak/midea2influx:1
 ```
 
 This assumes you're storing your JSON configuration file at `/home/cdzombak/.config/midea2influx.json`. Configuration is discussed in the next section.
+
+Note that [the `midea-beautiful-air` library must be able to broadcast UDP packets on the same network as your dehumidifier(s)](https://github.com/nbogojevic/midea-beautiful-air?tab=readme-ov-file#discovery). This is possible with Docker on Linux if the Docker host is on the same network as your dehumidifier(s) and you pass the `--network host` flag to `docker run` as shown above.
 
 ## Configuration
 
