@@ -17,6 +17,10 @@ COPY --from=builder /src/out/${BIN_NAME} /usr/bin/${BIN_NAME}
 ENTRYPOINT ["/usr/bin/midea2influx"]
 CMD ["-config", "/config.json"]
 
+RUN apt-get -y update &&  \
+    apt-get install --no-install-recommends  \
+    -y build-essential gcc && \
+    rm -rf /var/lib/apt/lists/*
 COPY requirements.txt /opt/requirements.txt
 RUN pip install --upgrade --no-cache-dir pip && \
     pip install --no-cache-dir --no-dependencies -r /opt/requirements.txt && \
