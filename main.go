@@ -87,8 +87,9 @@ func main() {
 	args := []string{"discover"}
 	args = append(args, config.MideaArgs...)
 	out, err := exec.Command(mCliName, args...).Output()
+	outStr := string(out)
 	if err != nil {
-		log.Println("stdout: " + string(out))
+		log.Println("stdout: " + outStr)
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			log.Println("stderr: " + string(exitErr.Stderr))
