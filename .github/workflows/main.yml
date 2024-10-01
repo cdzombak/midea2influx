@@ -175,18 +175,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download binaries & packages
-        uses: actions/download-artifact@v3
-        with:
-          name: ${{ needs.meta.outputs.bin_name }} Binary Artifacts
-          path: out
-      - name: List artifacts
-        working-directory: out
-        run: ls -R
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          files: out/${{ needs.meta.outputs.bin_name }}-*
           prerelease: ${{ needs.meta.outputs.is_prerelease == 'true' }}
           fail_on_unmatched_files: true
           generate_release_notes: true
