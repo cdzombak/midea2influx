@@ -197,6 +197,10 @@ func main() {
 			}
 		}
 	}
+	if len(points) == 0 {
+		log.Fatalf("no devices with data to report found")
+	}
+
 	if err := retry.Do(func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), influxTimeout)
 		defer cancel()
