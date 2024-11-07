@@ -16,6 +16,7 @@ import (
 	"github.com/cdzombak/libwx"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
+	"github.com/samber/lo"
 )
 
 var version = "<dev>"
@@ -197,6 +198,18 @@ func main() {
 			}
 		}
 	}
+
+	points = lo.Filter(points, func(point *write.Point, _ int) bool {
+		for _, f := range point.FieldList() {
+			if f.Key == "online" && !f.Value.(bool) {
+				return false
+			}
+			if f.Key == "temp_c" && f.Value.(float64) == 0 {
+				return false
+			}
+		}
+		return true
+	})
 	if len(points) == 0 {
 		log.Fatalf("no devices with data to report found")
 	}
