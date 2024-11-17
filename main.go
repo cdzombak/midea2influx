@@ -211,7 +211,8 @@ func main() {
 		return true
 	})
 	if len(points) == 0 {
-		log.Fatalf("no devices with data to report found")
+		log.Printf("no devices with data to report found")
+		os.Exit(11)
 	}
 
 	if err := retry.Do(func() error {
