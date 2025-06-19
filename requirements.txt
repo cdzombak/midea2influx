@@ -6,4 +6,4 @@ idna==3.10
 midea-beautiful-air==0.10.5
 pycparser==2.22
 requests==2.32.3
-urllib3==2.2.3
+urllib3==2.5.0
