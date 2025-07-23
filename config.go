@@ -9,13 +9,18 @@ import (
 
 type Config struct {
 	DehumidifierMeasurementName string   `json:"measurement_name_dehumidifier,omitempty"`
-	InfluxServer                string   `json:"influx_server"`
-	InfluxBucket                string   `json:"influx_bucket"`
+	InfluxServer                string   `json:"influx_server,omitempty"`
+	InfluxBucket                string   `json:"influx_bucket,omitempty"`
 	InfluxUser                  string   `json:"influx_user,omitempty"`
 	InfluxPass                  string   `json:"influx_password,omitempty"`
 	InfluxToken                 string   `json:"influx_token,omitempty"`
 	InfluxOrg                   string   `json:"influx_org,omitempty"`
 	InfluxHealthCheckDisabled   bool     `json:"influx_health_check_disabled,omitempty"`
+	MQTTHost                    string   `json:"mqtt_host,omitempty"`
+	MQTTPort                    int      `json:"mqtt_port,omitempty"`
+	MQTTTopic                   string   `json:"mqtt_topic,omitempty"`
+	MQTTUsername                string   `json:"mqtt_username,omitempty"`
+	MQTTPassword                string   `json:"mqtt_password,omitempty"`
 	HeartbeatURL                string   `json:"heartbeat_url,omitempty"`
 	MideaArgs                   []string `json:"midea_beautiful_air_cli_discover_args"`
 }
@@ -36,11 +41,33 @@ func ConfigFromFile(filename string) (Config, error) {
 	if config.DehumidifierMeasurementName == "" {
 		config.DehumidifierMeasurementName = "midea_dehumidifier"
 	}
-	if config.InfluxServer == "" {
-		return Config{}, fmt.Errorf("influx_server is required")
+
+	influxConfigured := config.InfluxServer != "" && config.InfluxBucket != ""
+	mqttConfigured := config.MQTTHost != "" && config.MQTTTopic != ""
+
+	if !influxConfigured && !mqttConfigured {
+		return Config{}, fmt.Errorf("at least one output must be configured: either InfluxDB (influx_server and influx_bucket) or MQTT (mqtt_host and mqtt_topic)")
 	}
-	if config.InfluxBucket == "" {
-		return Config{}, fmt.Errorf("influx_bucket is required")
+
+	if influxConfigured {
+		if config.InfluxServer == "" {
+			return Config{}, fmt.Errorf("influx_server is required when using InfluxDB output")
+		}
+		if config.InfluxBucket == "" {
+			return Config{}, fmt.Errorf("influx_bucket is required when using InfluxDB output")
+		}
+	}
+
+	if mqttConfigured {
+		if config.MQTTHost == "" {
+			return Config{}, fmt.Errorf("mqtt_host is required when using MQTT output")
+		}
+		if config.MQTTTopic == "" {
+			return Config{}, fmt.Errorf("mqtt_topic is required when using MQTT output")
+		}
+		if config.MQTTPort == 0 {
+			config.MQTTPort = 1883
+		}
 	}
 	if config.HeartbeatURL != "" {
 		_, err = url.Parse(config.HeartbeatURL)

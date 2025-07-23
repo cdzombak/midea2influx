@@ -9,12 +9,15 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/avast/retry-go"
 	"github.com/cdzombak/libwx"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/samber/lo"
 )
@@ -28,6 +31,10 @@ const (
 	influxTimeout    = 3 * time.Second
 	influxAttempts   = 3
 	influxRetryDelay = 1 * time.Second
+
+	mqttTimeout    = 3 * time.Second
+	mqttAttempts   = 3
+	mqttRetryDelay = 1 * time.Second
 
 	hbTimeout = 10 * time.Second
 )
@@ -63,27 +70,57 @@ func main() {
 		debugLog(fmt.Sprintf("%s found at %s", mCliName, mCliPath))
 	}
 
-	authString := ""
-	if config.InfluxUser != "" || config.InfluxPass != "" {
-		authString = fmt.Sprintf("%s:%s", config.InfluxUser, config.InfluxPass)
-	} else if config.InfluxToken != "" {
-		authString = config.InfluxToken
-	}
-	influxClient := influxdb2.NewClient(config.InfluxServer, authString)
-	if !config.InfluxHealthCheckDisabled {
-		ctx, cancel := context.WithTimeout(context.Background(), influxTimeout)
-		defer cancel()
-		health, err := influxClient.Health(ctx)
-		if err != nil {
-			log.Fatalf("Failed to check InfluxDB health: %v", err)
+	var influxClient influxdb2.Client
+	var influxWriteAPI api.WriteAPIBlocking
+	var mqttClient mqtt.Client
+
+	influxConfigured := config.InfluxServer != "" && config.InfluxBucket != ""
+	mqttConfigured := config.MQTTHost != "" && config.MQTTTopic != ""
+
+	if influxConfigured {
+		authString := ""
+		if config.InfluxUser != "" || config.InfluxPass != "" {
+			authString = fmt.Sprintf("%s:%s", config.InfluxUser, config.InfluxPass)
+		} else if config.InfluxToken != "" {
+			authString = config.InfluxToken
 		}
-		if health.Status != "pass" {
-			log.Fatalf("InfluxDB did not pass health check: status %s; message '%s'", health.Status, *health.Message)
+		influxClient = influxdb2.NewClient(config.InfluxServer, authString)
+		if !config.InfluxHealthCheckDisabled {
+			ctx, cancel := context.WithTimeout(context.Background(), influxTimeout)
+			defer cancel()
+			health, err := influxClient.Health(ctx)
+			if err != nil {
+				log.Fatalf("Failed to check InfluxDB health: %v", err)
+			}
+			if health.Status != "pass" {
+				log.Fatalf("InfluxDB did not pass health check: status %s; message '%s'", health.Status, *health.Message)
+			} else {
+				debugLog("InfluxDB passed health check")
+			}
+		}
+		influxWriteAPI = influxClient.WriteAPIBlocking(config.InfluxOrg, config.InfluxBucket)
+	}
+
+	if mqttConfigured {
+		opts := mqtt.NewClientOptions()
+		opts.AddBroker(fmt.Sprintf("tcp://%s:%d", config.MQTTHost, config.MQTTPort))
+		opts.SetClientID(fmt.Sprintf("%s-%d", programName, time.Now().Unix()))
+		opts.SetConnectTimeout(mqttTimeout)
+		if config.MQTTUsername != "" {
+			opts.SetUsername(config.MQTTUsername)
+		}
+		if config.MQTTPassword != "" {
+			opts.SetPassword(config.MQTTPassword)
+		}
+
+		mqttClient = mqtt.NewClient(opts)
+		if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
+			log.Fatalf("Failed to connect to MQTT broker: %v", token.Error())
 		} else {
-			debugLog("InfluxDB passed health check")
+			debugLog("Connected to MQTT broker")
 		}
+		defer mqttClient.Disconnect(250)
 	}
-	influxWriteAPI := influxClient.WriteAPIBlocking(config.InfluxOrg, config.InfluxBucket)
 
 	args := []string{"discover"}
 	args = append(args, config.MideaArgs...)
@@ -215,14 +252,26 @@ func main() {
 		os.Exit(11)
 	}
 
-	if err := retry.Do(func() error {
-		ctx, cancel := context.WithTimeout(context.Background(), influxTimeout)
-		defer cancel()
-		return influxWriteAPI.WritePoint(ctx, points...)
-	}, retry.Attempts(influxAttempts), retry.Delay(influxRetryDelay)); err != nil {
-		log.Fatalf("Failed to write %d points to Influx: %s", len(points), err)
-	} else {
-		log.Printf("Wrote %d points to Influx", len(points))
+	if influxConfigured {
+		if err := retry.Do(func() error {
+			ctx, cancel := context.WithTimeout(context.Background(), influxTimeout)
+			defer cancel()
+			return influxWriteAPI.WritePoint(ctx, points...)
+		}, retry.Attempts(influxAttempts), retry.Delay(influxRetryDelay)); err != nil {
+			log.Fatalf("Failed to write %d points to Influx: %s", len(points), err)
+		} else {
+			log.Printf("Wrote %d points to Influx", len(points))
+		}
+	}
+
+	if mqttConfigured {
+		if err := retry.Do(func() error {
+			return publishToMQTT(mqttClient, config.MQTTTopic, points, debugLog)
+		}, retry.Attempts(mqttAttempts), retry.Delay(mqttRetryDelay)); err != nil {
+			log.Fatalf("Failed to publish %d measurements to MQTT: %s", len(points), err)
+		} else {
+			log.Printf("Published %d measurements to MQTT", len(points))
+		}
 	}
 
 	if config.HeartbeatURL != "" {
@@ -234,4 +283,39 @@ func main() {
 			debugLog(fmt.Sprintf("Sent heartbeat to %s", config.HeartbeatURL))
 		}
 	}
+}
+
+func publishToMQTT(client mqtt.Client, baseTopic string, points []*write.Point, debugLog func(string)) error {
+	for _, point := range points {
+		deviceID := ""
+		for _, tag := range point.TagList() {
+			if tag.Key == "id" {
+				deviceID = tag.Value
+				break
+			}
+		}
+
+		for _, field := range point.FieldList() {
+			topic := fmt.Sprintf("%s/%s/%s", baseTopic, deviceID, field.Key)
+			var payload string
+
+			switch v := field.Value.(type) {
+			case bool:
+				payload = strconv.FormatBool(v)
+			case float64:
+				payload = strconv.FormatFloat(v, 'f', -1, 64)
+			case int64:
+				payload = strconv.FormatInt(v, 10)
+			default:
+				payload = fmt.Sprintf("%v", v)
+			}
+
+			token := client.Publish(topic, 0, false, payload)
+			if token.Wait() && token.Error() != nil {
+				return fmt.Errorf("failed to publish to topic %s: %w", topic, token.Error())
+			}
+			debugLog(fmt.Sprintf("Published to MQTT topic %s: %s", topic, payload))
+		}
+	}
+	return nil
 }

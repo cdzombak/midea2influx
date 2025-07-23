@@ -1,6 +1,6 @@
 # midea2influx
 
-Write status of Midea dehumidifers to InfluxDB.
+Write status of Midea dehumidifers to InfluxDB and/or MQTT.
 
 ## Goals and Limitations
 
@@ -30,7 +30,89 @@ Note that [the `midea-beautiful-air` library must be able to broadcast UDP packe
 
 ## Configuration
 
-Details TK ([#1](https://github.com/cdzombak/midea2influx/issues/1)); for now see `config.example.json`.
+Configuration is provided via a JSON file. At least one output method (InfluxDB or MQTT) must be configured.
+
+### InfluxDB Configuration
+
+- `influx_server`: InfluxDB server URL (e.g., `http://192.168.1.2:8086`)
+- `influx_bucket`: InfluxDB bucket name
+- `influx_user`: InfluxDB username (optional, use with `influx_password`)
+- `influx_password`: InfluxDB password (optional, use with `influx_user`)
+- `influx_token`: InfluxDB token (optional, alternative to username/password)
+- `influx_org`: InfluxDB organization (optional)
+- `influx_health_check_disabled`: Disable InfluxDB health check (optional, default: false)
+
+### MQTT Configuration
+
+- `mqtt_host`: MQTT broker hostname or IP address
+- `mqtt_port`: MQTT broker port (optional, default: 1883)
+- `mqtt_topic`: Base MQTT topic (e.g., `home/dehumidifier`)
+- `mqtt_username`: MQTT username (optional)
+- `mqtt_password`: MQTT password (optional)
+
+### Other Configuration
+
+- `measurement_name_dehumidifier`: InfluxDB measurement name (optional, default: `midea_dehumidifier`)
+- `heartbeat_url`: URL to ping after successful operation (optional)
+- `midea_beautiful_air_cli_discover_args`: Arguments to pass to `midea-beautiful-air-cli discover`
+
+### Home Assistant Configuration
+
+To use the MQTT output with Home Assistant, add sensors like these to your `configuration.yaml`:
+
+```yaml
+mqtt:
+  sensor:
+    - name: "Dehumidifier Temperature"
+      state_topic: "home/dehumidifier/YOUR_DEVICE_ID/temp_c"
+      unit_of_measurement: "°C"
+      device_class: "temperature"
+      
+    - name: "Dehumidifier Humidity"
+      state_topic: "home/dehumidifier/YOUR_DEVICE_ID/humidity_pct"
+      unit_of_measurement: "%"
+      device_class: "humidity"
+      
+    - name: "Dehumidifier Target Humidity"
+      state_topic: "home/dehumidifier/YOUR_DEVICE_ID/target_humidity_pct"
+      unit_of_measurement: "%"
+      device_class: "humidity"
+      
+    - name: "Dehumidifier Fan Speed"
+      state_topic: "home/dehumidifier/YOUR_DEVICE_ID/fan"
+      
+  binary_sensor:
+    - name: "Dehumidifier Online"
+      state_topic: "home/dehumidifier/YOUR_DEVICE_ID/online"
+      payload_on: "true"
+      payload_off: "false"
+      device_class: "connectivity"
+      
+    - name: "Dehumidifier Running"
+      state_topic: "home/dehumidifier/YOUR_DEVICE_ID/running"
+      payload_on: "true"
+      payload_off: "false"
+      device_class: "running"
+      
+    - name: "Dehumidifier Tank Full"
+      state_topic: "home/dehumidifier/YOUR_DEVICE_ID/tank_full"
+      payload_on: "true"
+      payload_off: "false"
+      device_class: "problem"
+      
+    - name: "Dehumidifier Filter Needs Cleaning"
+      state_topic: "home/dehumidifier/YOUR_DEVICE_ID/filter_needs_cleaning"
+      payload_on: "true"
+      payload_off: "false"
+      device_class: "problem"
+      
+    - name: "Dehumidifier Sleep Mode"
+      state_topic: "home/dehumidifier/YOUR_DEVICE_ID/sleep"
+      payload_on: "true"
+      payload_off: "false"
+```
+
+Replace `YOUR_DEVICE_ID` with the actual device ID from your dehumidifier (visible in the program's debug output).
 
 ## License
 
