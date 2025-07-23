@@ -50,12 +50,6 @@ Configuration is provided via a JSON file. At least one output method (InfluxDB 
 - `mqtt_username`: MQTT username (optional)
 - `mqtt_password`: MQTT password (optional)
 
-### Other Configuration
-
-- `measurement_name_dehumidifier`: InfluxDB measurement name (optional, default: `midea_dehumidifier`)
-- `heartbeat_url`: URL to ping after successful operation (optional)
-- `midea_beautiful_air_cli_discover_args`: Arguments to pass to `midea-beautiful-air-cli discover`
-
 ### MQTT Topic Structure
 
 When using MQTT output, each measurement is published to a subtopic under the configured base topic:
