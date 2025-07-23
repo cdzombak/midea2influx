@@ -50,19 +50,11 @@ Configuration is provided via a JSON file. At least one output method (InfluxDB 
 - `mqtt_username`: MQTT username (optional)
 - `mqtt_password`: MQTT password (optional)
 
-### MQTT Topic Structure
+### Other Configuration
 
-When using MQTT output, each measurement is published to a subtopic under the configured base topic:
-- `{base_topic}/{device_id}/temp_c` - Temperature in Celsius
-- `{base_topic}/{device_id}/temp_f` - Temperature in Fahrenheit  
-- `{base_topic}/{device_id}/humidity_pct` - Current humidity percentage
-- `{base_topic}/{device_id}/target_humidity_pct` - Target humidity percentage
-- `{base_topic}/{device_id}/online` - Device online status (true/false)
-- `{base_topic}/{device_id}/running` - Device running status (true/false)
-- `{base_topic}/{device_id}/fan` - Fan speed
-- `{base_topic}/{device_id}/tank_full` - Water tank full status (true/false)
-- `{base_topic}/{device_id}/filter_needs_cleaning` - Filter cleaning needed (true/false)
-- `{base_topic}/{device_id}/sleep` - Sleep mode status (true/false)
+- `measurement_name_dehumidifier`: InfluxDB measurement name (optional, default: `midea_dehumidifier`)
+- `heartbeat_url`: URL to ping after successful operation (optional)
+- `midea_beautiful_air_cli_discover_args`: Arguments to pass to `midea-beautiful-air-cli discover`
 
 ### Home Assistant Configuration
 
