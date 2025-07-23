@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
+	ec "github.com/cdzombak/exitcode_go"
 	"github.com/cdzombak/libwx"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -37,6 +38,8 @@ const (
 	mqttRetryDelay = 1 * time.Second
 
 	hbTimeout = 10 * time.Second
+
+	ecNoDevices = 11
 )
 
 func main() {
@@ -49,18 +52,18 @@ func main() {
 
 	if *printVersion {
 		fmt.Fprintln(os.Stderr, programName+" "+version)
-		os.Exit(0)
+		os.Exit(ec.Success)
 	}
 
 	if *configFile == "" {
 		fmt.Fprintln(os.Stderr, "-config is required.")
-		os.Exit(6)
+		os.Exit(ec.NotConfigured)
 	}
 
 	config, err := ConfigFromFile(*configFile)
 	if err != nil {
 		log.Printf("Loading config from '%s' failed: %s", *configFile, err)
-		os.Exit(6)
+		os.Exit(ec.NotConfigured)
 	}
 
 	mCliPath, err := exec.LookPath(mCliName)
@@ -249,7 +252,7 @@ func main() {
 	})
 	if len(points) == 0 {
 		log.Printf("no devices with data to report found")
-		os.Exit(11)
+		os.Exit(ecNoDevices)
 	}
 
 	if influxConfigured {
